@@ -71,7 +71,7 @@ Tests hit the real dev database (deliberately — the atomic-claiming logic in p
 
 Each service has its own `.env` (see `*.env.example` for defaults):
 
-- **`backend/.env`** — `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `PORT`, `FRONTEND_ORIGIN` (CORS)
+- **`backend/.env`** — `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `PORT`, `FRONTEND_ORIGIN` (CORS), `RATE_LIMIT_WINDOW_MS`/`RATE_LIMIT_MAX`, `AUTH_RATE_LIMIT_WINDOW_MS`/`AUTH_RATE_LIMIT_MAX`
 - **`worker/.env`** — `DATABASE_URL`, `WORKER_CONCURRENCY`, `POLL_INTERVAL_MS`, `HEARTBEAT_INTERVAL_MS`, `SHUTDOWN_TIMEOUT_MS`, `RECURRING_CHECK_INTERVAL_MS`
 - **`frontend/.env.local`** — `NEXT_PUBLIC_API_URL`
 

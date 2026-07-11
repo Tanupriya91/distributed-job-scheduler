@@ -5,6 +5,7 @@ import { prisma } from "@job-scheduler/db";
 import { apiRouter } from "./routes";
 import { requestLogger } from "./middleware/request-logger.middleware";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
+import { apiRateLimiter } from "./middleware/rate-limit.middleware";
 import { logger } from "./logger";
 
 export const app = express();
@@ -31,7 +32,7 @@ app.get("/health/db", async (_req: Request, res: Response) => {
   }
 });
 
-app.use("/api", apiRouter);
+app.use("/api", apiRateLimiter, apiRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

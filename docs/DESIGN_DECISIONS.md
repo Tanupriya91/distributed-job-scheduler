@@ -63,6 +63,13 @@ Bearer tokens, no revocation list. **Trade-off:** there's no way to force-logout
 ### `bcryptjs` instead of native `bcrypt`
 Pure-JS implementation, no native compilation step — avoids `node-gyp` friction on Windows dev machines, at a small performance cost irrelevant at this scale.
 
+### Two-tier rate limiting
+A general limiter (`RATE_LIMIT_MAX`, default 300/min) applies to every `/api` route as a baseline abuse guard; a much stricter limiter (`AUTH_RATE_LIMIT_MAX`, default 20/15min) applies specifically to `POST /api/auth/register` and `/login`, since credential-stuffing and spam-registration are the realistic threats worth throttling harder than everyday API usage. Both return the same structured `{error:{code:"RATE_LIMITED",...}}` shape as every other error in the API, rather than `express-rate-limit`'s default plaintext response.
+
+Verified live against the running server, not just in tests: 20 login attempts returned `401` (wrong credentials) as expected, the 21st returned `429` with the correct body, and an unrelated authenticated route continued responding normally in the meantime (confirming the two limiters are scoped independently and one tripping doesn't affect the other).
+
+**A real finding from building this, worth recording:** an early version of the test for "separate clients get separate rate-limit budgets" simulated multiple clients via a spoofed `X-Forwarded-For` header with `app.set('trust proxy', true)`. `express-rate-limit` itself rejected this at runtime with `ERR_ERL_PERMISSIVE_TRUST_PROXY` — correctly, because trusting `X-Forwarded-For` unconditionally means *any client* can set that header to whatever they like and get a fresh rate-limit budget on every request, defeating the limiter entirely. The app itself does not set `trust proxy` (Express's safe default — untrusted, direct-connection IPs only), which is correct for local dev; a real deployment behind a reverse proxy or load balancer would need `trust proxy` set to the *exact number of trusted hops* (e.g. `1`), never `true`. The test was rewritten to key on an explicit test header via a custom `keyGenerator` instead, avoiding the footgun rather than suppressing the warning.
+
 ### Three-layer authorization middleware, composed per-route
 `authenticate` (valid token?) → `requireOrgMembership` (member of this tenant?) → `requireRole(...)` (allowed to do *this*?) are three separate, composable middlewares rather than one combined check. Read-only routes stop at membership; mutating routes add the role check — each route declares exactly what it needs.
 

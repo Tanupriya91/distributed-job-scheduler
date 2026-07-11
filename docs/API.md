@@ -10,7 +10,9 @@ Base URL: `http://localhost:4000` (dev). All request/response bodies are JSON.
 ```json
 { "error": { "code": "VALIDATION_ERROR", "message": "...", "details": { } } }
 ```
-Common codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409), `INTERNAL_ERROR` (500).
+Common codes: `VALIDATION_ERROR` (400), `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `CONFLICT` (409), `RATE_LIMITED` (429), `INTERNAL_ERROR` (500).
+
+**Rate limiting.** Every `/api` route is limited to `RATE_LIMIT_MAX` requests per `RATE_LIMIT_WINDOW_MS` per client (default 300/minute). `POST /api/auth/register` and `/login` have a stricter, separate limit (`AUTH_RATE_LIMIT_MAX`, default 20 per 15 minutes) to blunt credential-stuffing and spam-registration specifically. Exceeding either returns `429` with the standard error shape, `code:"RATE_LIMITED"`.
 
 **Pagination.** List endpoints accept `?page=1&pageSize=20` (`pageSize` max 100) and return:
 ```json

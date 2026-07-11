@@ -1,0 +1,9 @@
+{
+  "name": "distributed-job-scheduler",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "worker",
+    "packages/*"
+  ]
+}

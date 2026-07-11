@@ -126,6 +126,11 @@ enum JobStatus {
 
 model Job {
   id               String    @id @default(cuid())
+  // Identifies which registered worker handler executes this job (e.g.
+  // "send-email"). Added in Phase 4 — Phase 3 only modeled *when* a job
+  // runs (type/runAt), not *what* it runs; the worker can't dispatch
+  // execution without this.
+  name             String
   type             JobType
   status           JobStatus
   payload          Json
@@ -144,9 +149,52 @@ model Job {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  queue            Queue  @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  queue            Queue   @relation(fields: [queueId], references: [id], onDelete: Cascade)
   queueId          String
+
+  worker           Worker? @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  workerId         String?
+  claimedAt        DateTime?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  lastError        String?
 
   @@unique([queueId, idempotencyKey])
   @@index([status, runAt])
+}
+
+enum WorkerStatus {
+  ACTIVE
+  DRAINING
+  OFFLINE
+}
+
+model Worker {
+  id            String       @id @default(cuid())
+  hostname      String
+  pid           Int
+  status        WorkerStatus @default(ACTIVE)
+  concurrency   Int
+  startedAt     DateTime     @default(now())
+  stoppedAt     DateTime?
+  // Denormalized "latest heartbeat" for O(1) liveness checks, so a health
+  // check doesn't have to query/sort WorkerHeartbeat. The heartbeat table
+  // still keeps full history for the worker-health-over-time dashboard view.
+  lastSeenAt    DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  jobs          Job[]
+  heartbeats    WorkerHeartbeat[]
+}
+
+model WorkerHeartbeat {
+  id         String   @id @default(cuid())
+  activeJobs Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  worker     Worker @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  workerId   String
+
+  @@index([workerId, createdAt])
 }

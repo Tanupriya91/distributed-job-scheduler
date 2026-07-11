@@ -11,9 +11,16 @@ type RetryPolicyOverride = {
 };
 
 type CreateJobBody =
-  | { type: "IMMEDIATE"; payload: Record<string, unknown>; idempotencyKey?: string; retryPolicy?: RetryPolicyOverride }
+  | {
+      type: "IMMEDIATE";
+      name: string;
+      payload: Record<string, unknown>;
+      idempotencyKey?: string;
+      retryPolicy?: RetryPolicyOverride;
+    }
   | {
       type: "DELAYED";
+      name: string;
       delaySeconds: number;
       payload: Record<string, unknown>;
       idempotencyKey?: string;
@@ -21,6 +28,7 @@ type CreateJobBody =
     }
   | {
       type: "SCHEDULED";
+      name: string;
       runAt: Date;
       payload: Record<string, unknown>;
       idempotencyKey?: string;
@@ -51,6 +59,7 @@ export async function createJob(req: Request, res: Response) {
   }
 
   const data = {
+    name: body.name,
     type: body.type as JobType,
     status,
     payload: body.payload as Prisma.InputJsonValue,

@@ -13,6 +13,7 @@ const jobStatusSchema = z.enum([
 ]);
 
 const commonJobFields = {
+  name: z.string().min(1, "name is required"),
   payload: z.record(z.unknown()).default({}),
   idempotencyKey: z.string().min(1).optional(),
   retryPolicy: retryPolicyOverrideSchema.optional(),

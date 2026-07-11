@@ -1,0 +1,25 @@
+{
+  "name": "@job-scheduler/worker",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@job-scheduler/db": "*",
+    "dotenv": "^16.4.5",
+    "pino": "^9.3.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0",
+    "ts-node-dev": "^2.0.0",
+    "pino-pretty": "^11.2.2",
+    "vitest": "^2.1.9"
+  }
+}

@@ -1,7 +1,7 @@
 import { NextFunction, Request, Response } from "express";
-import { AnyZodObject } from "zod";
+import { ZodType } from "zod";
 
-export function validateBody(schema: AnyZodObject) {
+export function validateBody(schema: ZodType) {
   return (req: Request, _res: Response, next: NextFunction) => {
     try {
       req.body = schema.parse(req.body);
@@ -12,7 +12,7 @@ export function validateBody(schema: AnyZodObject) {
   };
 }
 
-export function validateQuery(schema: AnyZodObject) {
+export function validateQuery(schema: ZodType) {
   return (req: Request, _res: Response, next: NextFunction) => {
     try {
       req.query = schema.parse(req.query) as unknown as Request["query"];

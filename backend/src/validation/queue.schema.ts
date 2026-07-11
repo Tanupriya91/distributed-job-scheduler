@@ -14,7 +14,7 @@ const createRetryPolicySchema = z
     path: ["maxDelaySeconds"],
   });
 
-const updateRetryPolicySchema = z.object({
+export const retryPolicyOverrideSchema = z.object({
   strategy: retryStrategySchema.optional(),
   maxAttempts: z.coerce.number().int().min(1).max(20).optional(),
   baseDelaySeconds: z.coerce.number().int().min(1).optional(),
@@ -33,5 +33,5 @@ export const updateQueueSchema = z.object({
   priority: z.coerce.number().int().min(0).max(100).optional(),
   concurrencyLimit: z.coerce.number().int().min(1).max(1000).optional(),
   isPaused: z.boolean().optional(),
-  retryPolicy: updateRetryPolicySchema.optional(),
+  retryPolicy: retryPolicyOverrideSchema.optional(),
 });

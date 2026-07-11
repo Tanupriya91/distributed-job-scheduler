@@ -7,6 +7,7 @@ import { validateBody, validateQuery } from "../middleware/validate.middleware";
 import { createQueueSchema, updateQueueSchema } from "../validation/queue.schema";
 import { paginationQuerySchema } from "../validation/pagination.schema";
 import { asyncHandler } from "../utils/async-handler";
+import { jobRouter } from "./job.routes";
 
 export const queueRouter = Router({ mergeParams: true });
 
@@ -43,3 +44,5 @@ queueRouter.post(
   requireRole(Role.OWNER, Role.ADMIN),
   asyncHandler(queueController.resumeQueue)
 );
+
+queueRouter.use("/:queueId/jobs", jobRouter);

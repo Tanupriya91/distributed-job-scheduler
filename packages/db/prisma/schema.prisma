@@ -83,6 +83,7 @@ model Queue {
   project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   projectId        String
   retryPolicy      RetryPolicy?
+  jobs             Job[]
 
   // projectId is already the leftmost column of the unique index below,
   // so a separate @@index([projectId]) would be redundant (left-prefix rule).
@@ -100,4 +101,52 @@ model RetryPolicy {
 
   queue            Queue  @relation(fields: [queueId], references: [id], onDelete: Cascade)
   queueId          String @unique
+}
+
+enum JobType {
+  IMMEDIATE
+  DELAYED
+  SCHEDULED
+}
+
+// CLAIMED/RUNNING/COMPLETED/FAILED/DEAD_LETTER are not produced by any
+// endpoint yet — Phase 3 only ever creates QUEUED or SCHEDULED jobs. The
+// full set is defined now so the worker (Phase 4) and retry/DLQ logic
+// (Phase 5) don't require another enum migration.
+enum JobStatus {
+  SCHEDULED
+  QUEUED
+  CLAIMED
+  RUNNING
+  COMPLETED
+  FAILED
+  DEAD_LETTER
+  CANCELLED
+}
+
+model Job {
+  id               String    @id @default(cuid())
+  type             JobType
+  status           JobStatus
+  payload          Json
+  runAt            DateTime
+  attempts         Int       @default(0)
+
+  // Snapshotted from the queue's RetryPolicy at creation time (with optional
+  // per-job override) so later edits to the queue's default policy don't
+  // retroactively change jobs already in flight.
+  retryStrategy    RetryStrategy
+  maxAttempts      Int
+  baseDelaySeconds Int
+  maxDelaySeconds  Int
+
+  idempotencyKey   String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  queue            Queue  @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  queueId          String
+
+  @@unique([queueId, idempotencyKey])
+  @@index([status, runAt])
 }

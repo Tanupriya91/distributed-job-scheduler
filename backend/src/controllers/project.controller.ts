@@ -75,3 +75,19 @@ export async function deleteProject(req: Request, res: Response) {
   await prisma.project.delete({ where: { id: req.project!.id } });
   res.status(204).send();
 }
+
+export async function getProjectStats(req: Request, res: Response) {
+  const projectId = req.project!.id;
+
+  const [statusCounts, queueCount, activeQueueCount] = await Promise.all([
+    prisma.job.groupBy({ by: ["status"], where: { queue: { projectId } }, _count: true }),
+    prisma.queue.count({ where: { projectId } }),
+    prisma.queue.count({ where: { projectId, isPaused: false } }),
+  ]);
+
+  res.status(200).json({
+    queueCount,
+    activeQueueCount,
+    statusCounts: Object.fromEntries(statusCounts.map((c) => [c.status, c._count])),
+  });
+}

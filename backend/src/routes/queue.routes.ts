@@ -6,6 +6,7 @@ import { loadQueue } from "../middleware/queue.middleware";
 import { validateBody, validateQuery } from "../middleware/validate.middleware";
 import { createQueueSchema, updateQueueSchema } from "../validation/queue.schema";
 import { paginationQuerySchema } from "../validation/pagination.schema";
+import { listExecutionsQuerySchema } from "../validation/observability.schema";
 import { asyncHandler } from "../utils/async-handler";
 import { jobRouter } from "./job.routes";
 import { recurringJobRouter } from "./recurring-job.routes";
@@ -45,6 +46,20 @@ queueRouter.post(
   "/:queueId/resume",
   requireRole(Role.OWNER, Role.ADMIN),
   asyncHandler(queueController.resumeQueue)
+);
+
+queueRouter.get("/:queueId/stats", asyncHandler(queueController.getQueueStats));
+
+queueRouter.get(
+  "/:queueId/executions",
+  validateQuery(listExecutionsQuerySchema),
+  asyncHandler(queueController.listQueueExecutions)
+);
+
+queueRouter.get(
+  "/:queueId/dead-letter-queue",
+  validateQuery(paginationQuerySchema),
+  asyncHandler(queueController.listDeadLetterQueue)
 );
 
 queueRouter.use("/:queueId/jobs", jobRouter);

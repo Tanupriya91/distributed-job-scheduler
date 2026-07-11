@@ -38,4 +38,6 @@ projectRouter.delete(
   asyncHandler(projectController.deleteProject)
 );
 
+projectRouter.get("/:projectId/stats", asyncHandler(projectController.getProjectStats));
+
 projectRouter.use("/:projectId/queues", queueRouter);

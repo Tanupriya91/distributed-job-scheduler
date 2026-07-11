@@ -59,7 +59,45 @@ model Project {
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationId String
+  queues         Queue[]
 
   @@unique([organizationId, slug])
   @@index([organizationId])
+}
+
+enum RetryStrategy {
+  FIXED
+  LINEAR
+  EXPONENTIAL
+}
+
+model Queue {
+  id               String   @id @default(cuid())
+  name             String
+  priority         Int      @default(0)
+  concurrencyLimit Int      @default(1)
+  isPaused         Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectId        String
+  retryPolicy      RetryPolicy?
+
+  // projectId is already the leftmost column of the unique index below,
+  // so a separate @@index([projectId]) would be redundant (left-prefix rule).
+  @@unique([projectId, name])
+}
+
+model RetryPolicy {
+  id               String        @id @default(cuid())
+  strategy         RetryStrategy @default(FIXED)
+  maxAttempts      Int           @default(3)
+  baseDelaySeconds Int           @default(30)
+  maxDelaySeconds  Int           @default(3600)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  queue            Queue  @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  queueId          String @unique
 }

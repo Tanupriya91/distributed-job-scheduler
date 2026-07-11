@@ -2,13 +2,17 @@ import { Router } from "express";
 import { Role } from "@job-scheduler/db";
 import * as projectController from "../controllers/project.controller";
 import { requireOrgMembership, requireRole } from "../middleware/membership.middleware";
+import { loadProject } from "../middleware/project.middleware";
 import { validateBody, validateQuery } from "../middleware/validate.middleware";
-import { createProjectSchema, paginationQuerySchema, updateProjectSchema } from "../validation/project.schema";
+import { createProjectSchema, updateProjectSchema } from "../validation/project.schema";
+import { paginationQuerySchema } from "../validation/pagination.schema";
 import { asyncHandler } from "../utils/async-handler";
+import { queueRouter } from "./queue.routes";
 
 export const projectRouter = Router({ mergeParams: true });
 
 projectRouter.use(asyncHandler(requireOrgMembership));
+projectRouter.param("projectId", asyncHandler(loadProject));
 
 projectRouter.post(
   "/",
@@ -33,3 +37,5 @@ projectRouter.delete(
   requireRole(Role.OWNER, Role.ADMIN),
   asyncHandler(projectController.deleteProject)
 );
+
+projectRouter.use("/:projectId/queues", queueRouter);

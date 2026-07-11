@@ -22,14 +22,6 @@ async function uniqueProjectSlug(organizationId: string, name: string): Promise<
   return candidate;
 }
 
-async function findProjectOrThrow(organizationId: string, projectId: string) {
-  const project = await prisma.project.findFirst({
-    where: { id: projectId, organizationId },
-  });
-  if (!project) throw AppError.notFound("Project not found");
-  return project;
-}
-
 export async function createProject(req: Request, res: Response) {
   const { organizationId } = req.params;
   const { name } = req.body as { name: string };
@@ -67,15 +59,12 @@ export async function listProjects(req: Request, res: Response) {
 }
 
 export async function getProject(req: Request, res: Response) {
-  const project = await findProjectOrThrow(req.params.organizationId, req.params.projectId);
-  res.status(200).json(project);
+  res.status(200).json(req.project);
 }
 
 export async function updateProject(req: Request, res: Response) {
-  await findProjectOrThrow(req.params.organizationId, req.params.projectId);
-
   const project = await prisma.project.update({
-    where: { id: req.params.projectId },
+    where: { id: req.project!.id },
     data: req.body as { name?: string },
   });
 
@@ -83,7 +72,6 @@ export async function updateProject(req: Request, res: Response) {
 }
 
 export async function deleteProject(req: Request, res: Response) {
-  await findProjectOrThrow(req.params.organizationId, req.params.projectId);
-  await prisma.project.delete({ where: { id: req.params.projectId } });
+  await prisma.project.delete({ where: { id: req.project!.id } });
   res.status(204).send();
 }

@@ -1,9 +1,14 @@
 import { NextFunction, Request, Response } from "express";
 
-type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Promise<unknown>;
+type AsyncHandler<Args extends unknown[]> = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+  ...rest: Args
+) => Promise<unknown>;
 
-export function asyncHandler(fn: AsyncRouteHandler) {
-  return (req: Request, res: Response, next: NextFunction) => {
-    fn(req, res, next).catch(next);
+export function asyncHandler<Args extends unknown[] = []>(fn: AsyncHandler<Args>) {
+  return (req: Request, res: Response, next: NextFunction, ...rest: Args) => {
+    fn(req, res, next, ...rest).catch(next);
   };
 }

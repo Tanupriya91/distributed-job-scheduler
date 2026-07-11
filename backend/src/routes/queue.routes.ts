@@ -8,6 +8,8 @@ import { createQueueSchema, updateQueueSchema } from "../validation/queue.schema
 import { paginationQuerySchema } from "../validation/pagination.schema";
 import { asyncHandler } from "../utils/async-handler";
 import { jobRouter } from "./job.routes";
+import { recurringJobRouter } from "./recurring-job.routes";
+import { jobBatchRouter } from "./job-batch.routes";
 
 export const queueRouter = Router({ mergeParams: true });
 
@@ -46,3 +48,5 @@ queueRouter.post(
 );
 
 queueRouter.use("/:queueId/jobs", jobRouter);
+queueRouter.use("/:queueId/recurring-jobs", recurringJobRouter);
+queueRouter.use("/:queueId/job-batches", jobBatchRouter);

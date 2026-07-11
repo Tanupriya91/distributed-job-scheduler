@@ -16,3 +16,7 @@ jobRouter.get("/", validateQuery(listJobsQuerySchema), asyncHandler(jobControlle
 jobRouter.get("/:jobId", asyncHandler(jobController.getJob));
 
 jobRouter.delete("/:jobId", asyncHandler(jobController.cancelJob));
+
+jobRouter.post("/:jobId/retry", asyncHandler(jobController.retryJob));
+
+jobRouter.get("/:jobId/executions", asyncHandler(jobController.listJobExecutions));

@@ -7,6 +7,7 @@ const envSchema = z.object({
   POLL_INTERVAL_MS: z.coerce.number().int().min(100).default(1000),
   HEARTBEAT_INTERVAL_MS: z.coerce.number().int().min(1000).default(10000),
   SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(1000).default(30000),
+  RECURRING_CHECK_INTERVAL_MS: z.coerce.number().int().min(1000).default(5000),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -91,17 +91,19 @@ export async function createJob(req: Request, res: Response) {
 
 export async function listJobs(req: Request, res: Response) {
   const { queueId } = req.params;
-  const { page, pageSize, status, type } = req.query as unknown as {
+  const { page, pageSize, status, type, batchId } = req.query as unknown as {
     page: number;
     pageSize: number;
     status?: JobStatus;
     type?: JobType;
+    batchId?: string;
   };
 
   const where: Prisma.JobWhereInput = {
     queueId,
     ...(status ? { status } : {}),
     ...(type ? { type } : {}),
+    ...(batchId ? { batchId } : {}),
   };
 
   const [data, total] = await Promise.all([
@@ -132,4 +134,41 @@ export async function cancelJob(req: Request, res: Response) {
   });
 
   res.status(200).json(job);
+}
+
+export async function retryJob(req: Request, res: Response) {
+  if (req.job!.status !== JobStatus.DEAD_LETTER) {
+    throw AppError.conflict(`Cannot retry a job in ${req.job!.status} state — only DEAD_LETTER jobs can be retried`);
+  }
+
+  const [job] = await prisma.$transaction([
+    prisma.job.update({
+      where: { id: req.job!.id },
+      data: {
+        status: JobStatus.QUEUED,
+        runAt: new Date(),
+        attempts: 0,
+        lastError: null,
+        workerId: null,
+        claimedAt: null,
+        startedAt: null,
+        completedAt: null,
+      },
+    }),
+    prisma.deadLetterQueue.update({
+      where: { jobId: req.job!.id },
+      data: { retriedAt: new Date() },
+    }),
+  ]);
+
+  res.status(200).json(job);
+}
+
+export async function listJobExecutions(req: Request, res: Response) {
+  const executions = await prisma.jobExecution.findMany({
+    where: { jobId: req.job!.id },
+    orderBy: { attemptNumber: "asc" },
+  });
+
+  res.status(200).json({ data: executions });
 }

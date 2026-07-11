@@ -84,6 +84,8 @@ model Queue {
   projectId        String
   retryPolicy      RetryPolicy?
   jobs             Job[]
+  recurringJobs    RecurringJob[]
+  jobBatches       JobBatch[]
 
   // projectId is already the leftmost column of the unique index below,
   // so a separate @@index([projectId]) would be redundant (left-prefix rule).
@@ -107,6 +109,7 @@ enum JobType {
   IMMEDIATE
   DELAYED
   SCHEDULED
+  RECURRING
 }
 
 // CLAIMED/RUNNING/COMPLETED/FAILED/DEAD_LETTER are not produced by any
@@ -159,8 +162,112 @@ model Job {
   completedAt      DateTime?
   lastError        String?
 
+  // Set when this job was spawned by a RecurringJob firing, or submitted
+  // as part of a batch. Both nullable — most jobs are neither.
+  recurringJob     RecurringJob? @relation(fields: [recurringJobId], references: [id], onDelete: SetNull)
+  recurringJobId   String?
+  batch            JobBatch?     @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  batchId          String?
+
+  executions       JobExecution[]
+  deadLetter       DeadLetterQueue?
+
   @@unique([queueId, idempotencyKey])
   @@index([status, runAt])
+  @@index([recurringJobId])
+  @@index([batchId])
+}
+
+enum JobExecutionStatus {
+  COMPLETED
+  FAILED
+}
+
+// One row per execution ATTEMPT (not per job) — this is the "retry history"
+// the assignment's DB design calls for. Job itself only ever holds the
+// latest attempt's denormalized fields (lastError, startedAt, completedAt);
+// this table is the append-only audit trail across all attempts.
+model JobExecution {
+  id            String             @id @default(cuid())
+  attemptNumber Int
+  status        JobExecutionStatus
+  startedAt     DateTime
+  completedAt   DateTime
+  error         String?
+  createdAt     DateTime           @default(now())
+
+  job           Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId         String
+
+  worker        Worker? @relation(fields: [workerId], references: [id], onDelete: SetNull)
+  workerId      String?
+
+  @@index([jobId, attemptNumber])
+}
+
+// A permanent record that a job exhausted its retry budget. Kept separate
+// from Job.status=DEAD_LETTER (which still exists for fast filtering) so
+// there's a dedicated, purpose-built resource for the dashboard's "Dead
+// Letter Queue" view and a place to record manual-retry history
+// (retriedAt) without overloading the Job row itself.
+model DeadLetterQueue {
+  id        String    @id @default(cuid())
+  reason    String
+  failedAt  DateTime  @default(now())
+  retriedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  job       Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId     String @unique
+}
+
+// A cron-based job definition — the template that periodically spawns real
+// Job rows. Named RecurringJob (not "ScheduledJob", despite the assignment's
+// DB-design wording) to avoid clashing with the already-shipped
+// Job.type=SCHEDULED, which means something different: a one-time job with
+// a future runAt, not a repeating cron template.
+model RecurringJob {
+  id               String        @id @default(cuid())
+  name             String
+  cronExpression   String
+  payload          Json
+  isPaused         Boolean       @default(false)
+  nextRunAt        DateTime
+  lastRunAt        DateTime?
+
+  retryStrategy    RetryStrategy
+  maxAttempts      Int
+  baseDelaySeconds Int
+  maxDelaySeconds  Int
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  queue            Queue  @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  queueId          String
+  jobs             Job[]
+
+  @@unique([queueId, name])
+  @@index([nextRunAt])
+}
+
+// A group of jobs submitted together in one request, so the dashboard can
+// show aggregate progress ("120/500 completed") instead of 500 unrelated
+// rows. Deliberately minimal: all jobs in a batch share the same type
+// (IMMEDIATE) and the queue's default retry policy — mixing scheduling
+// semantics within one batch would add complexity the assignment doesn't
+// ask for.
+model JobBatch {
+  id        String   @id @default(cuid())
+  name      String?
+  totalJobs Int
+  createdAt DateTime @default(now())
+
+  queue     Queue  @relation(fields: [queueId], references: [id], onDelete: Cascade)
+  queueId   String
+  jobs      Job[]
+
+  @@index([queueId])
 }
 
 enum WorkerStatus {
@@ -186,6 +293,7 @@ model Worker {
 
   jobs          Job[]
   heartbeats    WorkerHeartbeat[]
+  jobExecutions JobExecution[]
 }
 
 model WorkerHeartbeat {

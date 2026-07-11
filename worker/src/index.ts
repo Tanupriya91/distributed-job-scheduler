@@ -5,6 +5,7 @@ import { claimJobsForQueue } from "./claim";
 import { runJob } from "./execution";
 import { sendHeartbeat } from "./heartbeat";
 import { registerWorker, markDraining, markOffline } from "./register";
+import { dispatchDueRecurringJobs } from "./recurring";
 import "./handlers/examples";
 
 const runningJobs = new Set<Promise<void>>();
@@ -12,6 +13,7 @@ let shuttingDown = false;
 let workerId: string;
 let pollTimer: NodeJS.Timeout | undefined;
 let heartbeatTimer: NodeJS.Timeout | undefined;
+let recurringTimer: NodeJS.Timeout | undefined;
 
 function trackJob(promise: Promise<void>) {
   runningJobs.add(promise);
@@ -58,6 +60,7 @@ async function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down gracefully...");
   if (pollTimer) clearTimeout(pollTimer);
   if (heartbeatTimer) clearInterval(heartbeatTimer);
+  if (recurringTimer) clearInterval(recurringTimer);
 
   await markDraining(workerId);
 
@@ -87,6 +90,12 @@ async function main() {
   heartbeatTimer = setInterval(() => {
     sendHeartbeat(workerId, runningJobs.size).catch((err) => logger.error({ err }, "Heartbeat failed"));
   }, env.HEARTBEAT_INTERVAL_MS);
+
+  recurringTimer = setInterval(() => {
+    if (!shuttingDown) {
+      dispatchDueRecurringJobs().catch((err) => logger.error({ err }, "Recurring job dispatch failed"));
+    }
+  }, env.RECURRING_CHECK_INTERVAL_MS);
 
   pollTick();
 }
